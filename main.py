@@ -73,6 +73,7 @@ def show_image():
         image_label.image = display_img
         """
 
+
 def callback(*args):
     if show_image.has_been_called:
         noise_name = clicked.get()
