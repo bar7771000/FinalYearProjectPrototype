@@ -11,5 +11,5 @@ Model is trained on COCO dataset which allows it to detect up to 80 different cl
 ----
 YOLOv4 Paper - https://arxiv.org/pdf/2004.10934.pdf
 COCO Dataset Paper - https://arxiv.org/pdf/1405.0312.pdf
-
+Darknet - https://github.com/roboflow-ai/darknet
 
