@@ -13,7 +13,7 @@ from tkinter.filedialog import askopenfile
 import tkinter.font as tkFont
 from torchvision import models
 from torchvision import transforms
-import torch
+import torch #NA
 import cv2
 import math
 #from perceptron.models.classification import PyTorchModel
@@ -77,6 +77,10 @@ def show_image():
 def callback(*args):
     if show_image.has_been_called:
         noise_name = clicked.get()
+        # change for a switch statement
+        #Noises from skimage:
+        #Gaussian, Poisson, Salt, Pepper, S&P, Speckle
+
         if noise_name == "Salt & Pepper":
             print("Salt & Pepper")
         elif noise_name == "Gaussian":
@@ -84,12 +88,16 @@ def callback(*args):
         elif noise_name == "Poison":
             print("Poison")
 
+#Need to create 2 seaparate update functions
+# 1) for Salt, Pepper, S&P with amount parameter
+# 2) for Gaussian and Speckle with var(variance) parameter instead
 
-def update_image():
+
+def update_image(noise):
     if show_image.has_been_called:
         global noised_image
         update_image.has_been_called = True
-        noise_image = random_noise(BRG_img, mode="s&p", amount=float(get_slider_value()))
+        noise_image = random_noise(BRG_img, mode="s&p", amount=float(get_slider_value())) #Use noise as a parameter
         noised_image = np.array(255 * noise_image, dtype="uint8")
 
         filtered_image = display_converted(noised_image)
@@ -119,7 +127,7 @@ def perform_detection():
             print(type(classIds_fil), len(scores_fil))
             for (classId, score) in zip(classIds_fil, scores_fil):
                 print(classIds_fil, scores_fil)
-                if len(scores_fil) != 0:  #TODO Figure this condition out
+                if len(scores_fil) != 0:  #TODO Modify the conditions so it only detects person class
                     prediction_outcome = [classes[classId], score]
                     prediction_text = prediction_outcome[0] + " : " + str(round(prediction_outcome[1] * 100, 2)) + "%"
                     image_prediction_label2.config(text=prediction_text)
