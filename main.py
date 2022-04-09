@@ -1,22 +1,22 @@
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
-import scipy as sp
+
+
+
 import matplotlib.pyplot as plt
-from scipy import signal
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
-from PIL import Image, ImageTk, ImageOps
-from skimage import io, transform
+from PIL import Image, ImageTk
+
 from skimage.util import random_noise
 from tkinter.filedialog import askopenfile
 import tkinter.font as tkFont
-from torchvision import models
-from torchvision import transforms
-import torch #NA
+
 import cv2
 import math
-#from perceptron.models.classification import PyTorchModel
+
+
+
+# TODO
 
 
 background_color = "#b65449"
@@ -28,28 +28,27 @@ with open("coco.names", "r") as f:
 net = cv2.dnn.readNetFromDarknet("yolov4.cfg", "yolov4.weights")
 model = cv2.dnn_DetectionModel(net)
 model.setInputParams(scale=1/255, size=(416, 416), swapRB=True)
-noises = ["Salt & Pepper", "Gaussian", "Poison"]
+noises = ["Salt & Pepper", "Salt", "Pepper", "Gaussian", "Poison", "Speckle"]
 
-def display_converted(img):
-    blue, green, red = cv2.split(img)
-    RGB_img = cv2.merge((red, green, blue))
-    new_img = Image.fromarray(RGB_img)
-    new_img.thumbnail((425, 425))
-    display_img = ImageTk.PhotoImage(image=new_img)
-    return display_img
+def convert_img(img):
+     RGB_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+     new_img = Image.fromarray(RGB_img)
+     new_img.thumbnail((425, 425))
+     converted_img = ImageTk.PhotoImage(image=new_img)
+     return converted_img
 
 
 def show_image():
     show_image.has_been_called = True
     browsing_text.set(btn_names[1])
-    global BRG_img
+    global raw_image
     global filename
     filename = askopenfile(parent=root, mode="rb", title="Choose a file", filetype=[("JPG File", ".jpg"), ("JPEG File", ".jpeg"), ("PNG File", ".png")])
     if filename:
-        BRG_img = cv2.imread(filename.name)
-        display_img = display_converted(BRG_img)
-        image_label.configure(image=display_img)
-        image_label.image = display_img
+        raw_image = cv2.imread(filename.name)
+        display_image = convert_img(raw_image)
+        image_label.configure(image=display_image)
+        image_label.image = display_image
         if image_label.image:
             slider.grid(columnspan=2, row=1)
         browsing_text.set(btn_names[0])
@@ -75,32 +74,50 @@ def show_image():
 
 
 def callback(*args):
+    global noise_image
     if show_image.has_been_called:
         noise_name = clicked.get()
-        # change for a switch statement
+        print(noise_name)
+        print(get_slider_value())
+        # change for a switch statement// Switch statement only exists in python 3.10 :(
         #Noises from skimage:
         #Gaussian, Poisson, Salt, Pepper, S&P, Speckle
 
         if noise_name == "Salt & Pepper":
-            print("Salt & Pepper")
+            noise_image = random_noise(raw_image, mode="s&p", amount=float(get_slider_value()))
+
+        elif noise_name == "Salt":
+            noise_image = random_noise(raw_image, mode="salt", amount=float(get_slider_value()))
+
+        elif noise_name == "Pepper":
+            noise_image = random_noise(raw_image, mode="pepper", amount=float(get_slider_value()))
+
         elif noise_name == "Gaussian":
-            print("Gaussian")
-        elif noise_name == "Poison":
-            print("Poison")
+            noise_image = random_noise(raw_image, mode="gaussian", var=float(get_slider_value())) #Updates upon change and stays at the same value until changed again
+
+        elif noise_name == "Poisson":
+            noise_image = random_noise(raw_image, mode="poisson") #Poisson works but doesnt do anything
+
+        elif noise_name == "Speckle":
+            noise_image = random_noise(raw_image, mode="speckle", var=float(get_slider_value())) #Updates upon change and stays at the same value until changed again
+
+        return noise_image
+
 
 #Need to create 2 seaparate update functions
 # 1) for Salt, Pepper, S&P with amount parameter
 # 2) for Gaussian and Speckle with var(variance) parameter instead
 
 
-def update_image(noise):
+def update_image(): #TODO add noise parameter
     if show_image.has_been_called:
+        callback()
         global noised_image
+        #if noise_image != None:
         update_image.has_been_called = True
-        noise_image = random_noise(BRG_img, mode="s&p", amount=float(get_slider_value())) #Use noise as a parameter
+        #noise_image = random_noise(raw_image, mode="s&p", amount=float(get_slider_value())) #TODO Change parameter to value from select option
         noised_image = np.array(255 * noise_image, dtype="uint8")
-
-        filtered_image = display_converted(noised_image)
+        filtered_image = convert_img(noised_image)
         image_label2.configure(image=filtered_image)
         image_label2.image = filtered_image
     else:
@@ -117,25 +134,30 @@ def slider_changed(event):
 
 def perform_detection():
     if show_image.has_been_called:
-        classIds, scores, boxes = model.detect(BRG_img, confThreshold=0.4, nmsThreshold=0.4)
-        for (classId, score) in zip(classIds, scores):
-            prediction_outcome = [classes[classId], score]
-            prediction_text = prediction_outcome[0] + " : " + str(round(prediction_outcome[1]*100, 2)) + "%"
-            image_prediction_label1.config(text=prediction_text)
-        if update_image.has_been_called:
-            classIds_fil, scores_fil, boxes_fil = model.detect(noised_image, confThreshold=0.4, nmsThreshold=0.4)
-            print(type(classIds_fil), len(scores_fil))
-            for (classId, score) in zip(classIds_fil, scores_fil):
-                print(classIds_fil, scores_fil)
-                if len(scores_fil) != 0:  #TODO Modify the conditions so it only detects person class
-                    prediction_outcome = [classes[classId], score]
-                    prediction_text = prediction_outcome[0] + " : " + str(round(prediction_outcome[1] * 100, 2)) + "%"
-                    image_prediction_label2.config(text=prediction_text)
-                    print("im still here")
-                    print(score)
-                else:
+        classIds, scores, boxes = model.detect(raw_image, confThreshold=0.4, nmsThreshold=0.4) #base image prediction
+        for (classId, score) in zip(classIds, scores): #TODO: Possibly get rid of for loop as were looking only for person class and its calling function twice xd
+            if classId == 0: #Recognises only human now!
+                prediction_outcome = [classes[classId], score]
+                prediction_text = prediction_outcome[0] + " : " + str(round(prediction_outcome[1]*100, 2)) + "%"
+                image_prediction_label1.config(text=prediction_text)
+            if update_image.has_been_called:
+                classIds_fil, scores_fil, boxes_fil = model.detect(noised_image, confThreshold=0.4, nmsThreshold=0.4) #filtered image prediction
+                print(type(classIds_fil), len(scores_fil))  # when class is not recognised classIds_fill = "tuple" / len of scores_fill = 0
+                #for (classId_fil, score_fil) in zip(classIds_fil, scores_fil):
+                for i in range(len(classIds_fil)):
+                    if classIds_fil[i] == 0:
+                        print(classIds_fil, scores_fil)
+                        prediction_outcome = [classes[classIds_fil[i]], scores_fil[i]]
+                        prediction_text = prediction_outcome[0] + " : " + str(round(prediction_outcome[1] * 100, 2)) + "%"
+                        image_prediction_label2.config(text=prediction_text)
+                        # TODO: check the bookmarks on how to display plot in tkinter window
+                        #slices = [3, 7, 8]
+                        #plt.pie(slices, labels=["Gaussian", "S&P", "Poisson"], colors=["r", "y", "g"])
+                        #plt.show()
+                if len(scores_fil) == 0:
                     prediction_text = "Can't Recognise an Object"
                     image_prediction_label2.config(text=prediction_text)
+                    print(prediction_text)
 
     else:
         print("You have to upload an image first!")
@@ -209,11 +231,7 @@ def entry_screen():
     start_screen.mainloop()
 
 
-"""
-def login_screen():
-    print("yello")
-    #TODO: Implement Login/Register
-"""
+
 
 entry_screen()
 
